@@ -42,7 +42,8 @@ class WhisperController {
 
       final Duration transcriptionDuration = DateTime.now().difference(start);
 
-      return TranscribeResult(time: transcriptionDuration, transcription: transcription);
+      return TranscribeResult(
+          time: transcriptionDuration, transcription: transcription);
     } catch (e) {
       debugPrint(e.toString());
       return null;
@@ -50,8 +51,9 @@ class WhisperController {
   }
 
   static Future<String> getModelDir() async {
-    final Directory libraryDirectory =
-        Platform.isAndroid ? await getApplicationSupportDirectory() : await getLibraryDirectory();
+    final Directory libraryDirectory = Platform.isAndroid
+        ? await getApplicationSupportDirectory()
+        : await getApplicationSupportDirectory();
     return libraryDirectory.path;
   }
 
