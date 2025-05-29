@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' as io;
 
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_session.dart';
@@ -23,6 +24,47 @@ class WhisperAudioConvert {
 
   /// convert [audioInput] to wav file
   Future<File?> convert() async {
+    if (Platform.isLinux) {
+      return _convertLinux();
+    }
+    return _convertWithFFmpegKit();
+  }
+
+  /// Linux-specific conversion using Process.run
+  Future<File?> _convertLinux() async {
+    try {
+      // Check if ffmpeg is available
+      final checkResult = await io.Process.run('which', ['ffmpeg']);
+      if (checkResult.exitCode != 0) {
+        debugPrint('FFmpeg not found. Please install ffmpeg: sudo apt-get install ffmpeg');
+        return null;
+      }
+
+      // Run ffmpeg conversion
+      final result = await io.Process.run('ffmpeg', [
+        '-y', // Overwrite output file
+        '-i', audioInput.path,
+        '-ar', '16000', // Sample rate
+        '-ac', '1', // Mono channel
+        '-c:a', 'pcm_s16le', // Audio codec
+        audioOutput.path,
+      ]);
+
+      if (result.exitCode == 0) {
+        return audioOutput;
+      } else {
+        debugPrint('FFmpeg conversion failed with exit code: ${result.exitCode}');
+        debugPrint('Error output: ${result.stderr}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Error during Linux audio conversion: $e');
+      return null;
+    }
+  }
+
+  /// Conversion using FFmpegKit for other platforms
+  Future<File?> _convertWithFFmpegKit() async {
     final FFmpegSession session = await FFmpegKit.execute(
       [
         '-y',
