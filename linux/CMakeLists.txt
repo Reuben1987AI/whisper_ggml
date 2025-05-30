@@ -50,7 +50,8 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE pthread)
 target_link_libraries(${PLUGIN_NAME} PRIVATE m)
 
 # List of absolute paths to libraries that should be bundled with the plugin
+# This ensures the plugin library is available at runtime
 set(whisper_ggml_bundled_libraries
-  ""
+  "$<TARGET_FILE:${PLUGIN_NAME}>"
   PARENT_SCOPE
 )

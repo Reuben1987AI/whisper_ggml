@@ -41,7 +41,18 @@ class Whisper {
     if (Platform.isAndroid) {
       return DynamicLibrary.open('libwhisper.so');
     } else if (Platform.isLinux) {
-      return DynamicLibrary.open('libwhisper_ggml_plugin.so');
+      try {
+        // Try to open the library directly (for deployed apps)
+        return DynamicLibrary.open('libwhisper_ggml_plugin.so');
+      } catch (e) {
+        // If that fails, try with the full library name that Flutter uses
+        try {
+          return DynamicLibrary.open('whisper_ggml_plugin.so');
+        } catch (e2) {
+          // As a last resort, let the system find it
+          return DynamicLibrary.process();
+        }
+      }
     } else if (Platform.isMacOS || Platform.isIOS) {
       return DynamicLibrary.process();
     } else {
