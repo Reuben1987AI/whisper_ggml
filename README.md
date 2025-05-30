@@ -16,6 +16,7 @@ OpenAI Whisper ASR (Automatic Speech Recognition) for Flutter using [Whisper.cpp
 | Android   | ✅        |
 | iOS       | ✅        |
 | MacOS     | ✅        |
+| Linux     | ✅        |
 
 
 
@@ -99,8 +100,47 @@ if (result?.transcription.text != null) {
 
 
 
+## Testing
+
+### Running Tests
+
+The project includes unit and integration tests for the Linux audio conversion functionality.
+
+#### Prerequisites for Linux
+- FFmpeg must be installed for audio conversion tests: `sudo apt-get install ffmpeg`
+
+#### Run all tests
+```bash
+# Run unit tests
+flutter test
+
+# Run integration tests (Linux only)
+flutter test test/integration/
+
+# Or use the test runner script
+./test/run_tests.sh
+```
+
+#### Run specific test files
+```bash
+# Run audio conversion tests
+flutter test test/whisper_audio_convert_test.dart
+
+# Run Linux integration tests
+flutter test test/integration/whisper_audio_convert_integration_test.dart
+```
+
+### Test Coverage
+- Unit tests for Linux audio conversion with mocked dependencies
+- Integration tests for actual FFmpeg audio conversion (Linux only)
+- Error handling and edge cases for Linux platform
+- Tests for other platforms would require mocking FFmpegKit plugin
+
 ## Notes
 
+### Linux Support
+- Audio conversion on Linux requires FFmpeg to be installed
+- Install with: `sudo apt-get install ffmpeg` (Debian/Ubuntu) or equivalent for your distribution
 
-
-Transcription processing time is about `5x` times faster when running in release mode.
+### Performance
+- Transcription processing time is about `5x` times faster when running in release mode.

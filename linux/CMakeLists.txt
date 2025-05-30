@@ -5,16 +5,52 @@ cmake_minimum_required(VERSION 3.10)
 
 # Project-level configuration.
 set(PROJECT_NAME "whisper_ggml")
-project(${PROJECT_NAME} LANGUAGES CXX)
+project(${PROJECT_NAME} LANGUAGES C CXX)
 
-# List of absolute paths to libraries that should be bundled with the plugin.
-# This list could contain prebuilt libraries, or libraries created by an
-# external build triggered from this build file.
-set(ggml_library_flutter_bundled_libraries
-        # Defined in ../src/CMakeLists.txt.
-        # This can be changed to accommodate different builds.
-        "${CMAKE_CURRENT_SOURCE_DIR}/libggml-base.so"
-        "${CMAKE_CURRENT_SOURCE_DIR}/libggml-cpu.so"
-        "${CMAKE_CURRENT_SOURCE_DIR}/libggml.so"
-        PARENT_SCOPE
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# This value is used when generating builds using this plugin, so it must
+# not be changed
+set(PLUGIN_NAME "whisper_ggml_plugin")
+
+# Define the plugin library target
+add_library(${PLUGIN_NAME} SHARED
+  "whisper_ggml.cpp"
+  "whisper.cpp/whisper.cpp"
+  "whisper.cpp/ggml.c"
+)
+
+# Set optimization flags
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -pthread")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -pthread")
+
+# Apply standard settings
+set_target_properties(${PLUGIN_NAME} PROPERTIES
+  CXX_VISIBILITY_PRESET hidden
+  C_VISIBILITY_PRESET hidden
+)
+
+# Add definitions
+target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
+
+# Include directories
+target_include_directories(${PLUGIN_NAME} INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+# System libraries
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GTK REQUIRED gtk+-3.0)
+
+target_link_libraries(${PLUGIN_NAME} PRIVATE ${GTK_LIBRARIES})
+target_link_libraries(${PLUGIN_NAME} PRIVATE pthread)
+target_link_libraries(${PLUGIN_NAME} PRIVATE m)
+
+# List of absolute paths to libraries that should be bundled with the plugin
+set(whisper_ggml_bundled_libraries
+  ""
+  PARENT_SCOPE
 )

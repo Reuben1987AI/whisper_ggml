@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' as io;
 
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_session.dart';
@@ -7,13 +6,16 @@ import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:flutter/foundation.dart';
 import 'package:universal_io/io.dart';
 
+import 'process_runner.dart';
+
 /// Class used to convert any audio file to wav
 class WhisperAudioConvert {
   ///
   const WhisperAudioConvert({
     required this.audioInput,
     required this.audioOutput,
-  });
+    ProcessRunner? processRunner,
+  }) : _processRunner = processRunner ?? const DefaultProcessRunner();
 
   /// Input audio file
   final File audioInput;
@@ -21,6 +23,9 @@ class WhisperAudioConvert {
   /// Output audio file
   /// Overwriten if already exist
   final File audioOutput;
+
+  /// Process runner for testing
+  final ProcessRunner _processRunner;
 
   /// convert [audioInput] to wav file
   Future<File?> convert() async {
@@ -34,14 +39,14 @@ class WhisperAudioConvert {
   Future<File?> _convertLinux() async {
     try {
       // Check if ffmpeg is available
-      final checkResult = await io.Process.run('which', ['ffmpeg']);
+      final checkResult = await _processRunner.run('which', ['ffmpeg']);
       if (checkResult.exitCode != 0) {
         debugPrint('FFmpeg not found. Please install ffmpeg: sudo apt-get install ffmpeg');
         return null;
       }
 
       // Run ffmpeg conversion
-      final result = await io.Process.run('ffmpeg', [
+      final result = await _processRunner.run('ffmpeg', [
         '-y', // Overwrite output file
         '-i', audioInput.path,
         '-ar', '16000', // Sample rate

@@ -40,8 +40,12 @@ class Whisper {
   DynamicLibrary _openLib() {
     if (Platform.isAndroid) {
       return DynamicLibrary.open('libwhisper.so');
-    } else {
+    } else if (Platform.isLinux) {
+      return DynamicLibrary.open('libwhisper_ggml_plugin.so');
+    } else if (Platform.isMacOS || Platform.isIOS) {
       return DynamicLibrary.process();
+    } else {
+      throw UnsupportedError('Unsupported platform: ${Platform.operatingSystem}');
     }
   }
 
