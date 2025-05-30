@@ -33,6 +33,9 @@ set_target_properties(${PLUGIN_NAME} PROPERTIES
   C_VISIBILITY_PRESET hidden
 )
 
+# Ensure the request function is exported
+set_property(TARGET ${PLUGIN_NAME} PROPERTY LINK_FLAGS "-Wl,--export-dynamic")
+
 # Add definitions
 target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
 

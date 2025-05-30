@@ -165,6 +165,8 @@ bool read_wav(const std::string &fname, std::vector<float> &pcmf32, std::vector<
 
 extern "C" {
 
+// Export the function with C linkage and default visibility
+__attribute__((visibility("default")))
 char* request(char* body)
 {
     json requestJson = json::parse(body);
