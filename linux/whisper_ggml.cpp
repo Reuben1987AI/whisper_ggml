@@ -163,10 +163,14 @@ bool read_wav(const std::string &fname, std::vector<float> &pcmf32, std::vector<
     return true;
 }
 
-extern "C" {
+// FFI Symbol Export Strategy
+// 
+// Architecture Decision: Single exported function with C linkage
+// - Reason: Dart FFI requires C linkage for symbol resolution
+// - Visibility: Explicit export despite hidden default visibility
+// - Justification: Minimizes symbol pollution while ensuring FFI accessibility
 
-// Export the function with C linkage and default visibility
-__attribute__((visibility("default")))
+extern "C" __attribute__((visibility("default")))
 char* request(char* body)
 {
     json requestJson = json::parse(body);
