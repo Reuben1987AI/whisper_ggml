@@ -173,43 +173,108 @@ bool read_wav(const std::string &fname, std::vector<float> &pcmf32, std::vector<
 extern "C" __attribute__((visibility("default")))
 char* request(char* body)
 {
-    json requestJson = json::parse(body);
+    json requestJson;
     json responseJson;
 
     try {
-        std::string action = requestJson["action"];
+        // Debug: Log the incoming request to file
+        FILE* debug_log = fopen("/tmp/whisper_debug.log", "a");
+        if (debug_log) {
+            fprintf(debug_log, "DEBUG: request() called with body: %s\n", body);
+            fflush(debug_log);
+        }
+        
+        requestJson = json::parse(body);
+        std::string action = requestJson["@type"];
+        
+        if (debug_log) {
+            fprintf(debug_log, "DEBUG: action = %s\n", action.c_str());
+            fflush(debug_log);
+        }
         
         if (action == "getVersion") {
+            responseJson["@type"] = "getVersion";
             responseJson["version"] = "1.0.0";
-        } else if (action == "transcribe") {
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: getVersion completed\n");
+                fflush(debug_log);
+            }
+        } else if (action == "getTextFromWavFile") {
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: Starting transcribe action\n");
+                fflush(debug_log);
+            }
             // Initialize whisper
-            std::string modelPath = requestJson["modelPath"];
+            std::string modelPath = requestJson["model"];
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: Model path: %s\n", modelPath.c_str());
+                fflush(debug_log);
+            }
+            
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: About to call whisper_init_from_file\n");
+                fflush(debug_log);
+            }
+            
             struct whisper_context *ctx = whisper_init_from_file(modelPath.c_str());
             
             if (ctx == nullptr) {
+                if (debug_log) {
+                    fprintf(debug_log, "DEBUG: Failed to initialize whisper model\n");
+                    fflush(debug_log);
+                }
                 responseJson["error"] = "Failed to initialize model";
                 return jsonToChar(responseJson);
+            }
+            
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: Whisper context initialized successfully\n");
+                fflush(debug_log);
             }
 
             // Set up parameters
             whisper_params params;
-            params.fname_inp = requestJson["audioPath"];
+            params.fname_inp = requestJson["audio"];
             params.language = requestJson["language"];
-            params.translate = requestJson["isTranslate"];
-            params.no_timestamps = requestJson["isNoTimestamps"];
+            params.translate = requestJson["is_translate"];
+            params.no_timestamps = requestJson["is_no_timestamps"];
             params.n_threads = requestJson["threads"];
-            params.print_special_tokens = requestJson["isSpecialTokens"];
+            params.print_special_tokens = requestJson["is_special_tokens"];
+
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: Audio file path: %s\n", params.fname_inp.c_str());
+                fflush(debug_log);
+            }
 
             // Read audio
             std::vector<float> pcmf32;
             std::vector<std::vector<float>> pcmf32s;
             
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: About to read audio file\n");
+                fflush(debug_log);
+            }
+            
             if (!read_wav(params.fname_inp, pcmf32, pcmf32s, params.diarize)) {
+                if (debug_log) {
+                    fprintf(debug_log, "DEBUG: Failed to read audio file\n");
+                    fflush(debug_log);
+                }
                 whisper_free(ctx);
                 responseJson["error"] = "Failed to read audio file";
                 return jsonToChar(responseJson);
             }
 
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: Audio file read successfully, samples: %zu\n", pcmf32.size());
+                fflush(debug_log);
+            }
+
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: Setting up whisper inference parameters\n");
+                fflush(debug_log);
+            }
+            
             // Run inference
             whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
             
@@ -238,14 +303,35 @@ char* request(char* body)
             wparams.prompt_tokens    = nullptr;
             wparams.prompt_n_tokens  = 0;
 
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: About to call whisper_full_parallel\n");
+                fflush(debug_log);
+            }
+            
             if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), params.n_processors) != 0) {
+                if (debug_log) {
+                    fprintf(debug_log, "DEBUG: whisper_full_parallel failed\n");
+                    fflush(debug_log);
+                }
                 whisper_free(ctx);
                 responseJson["error"] = "Failed to process audio";
                 return jsonToChar(responseJson);
             }
 
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: whisper_full_parallel completed successfully\n");
+                fflush(debug_log);
+            }
+
             // Get results
             const int n_segments = whisper_full_n_segments(ctx);
+            
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: Number of segments: %d\n", n_segments);
+                fflush(debug_log);
+            }
+            
+            responseJson["@type"] = "getTextFromWavFile";
             responseJson["text"] = "";
             
             json segments = json::array();
@@ -255,11 +341,18 @@ char* request(char* body)
                 const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
                 const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
                 
-                responseJson["text"] = std::string(responseJson["text"]) + std::string(text);
+                if (debug_log) {
+                    fprintf(debug_log, "DEBUG: Segment %d: '%s'\n", i, text ? text : "null");
+                    fflush(debug_log);
+                }
+                
+                if (text) {
+                    responseJson["text"] = std::string(responseJson["text"]) + std::string(text);
+                }
                 
                 if (!params.no_timestamps) {
                     json segment;
-                    segment["text"] = text;
+                    segment["text"] = text ? text : "";
                     segment["start"] = t0 * 10; // Convert to milliseconds
                     segment["end"] = t1 * 10;
                     segments.push_back(segment);
@@ -268,14 +361,43 @@ char* request(char* body)
             
             responseJson["segments"] = segments;
             
+            if (debug_log) {
+                fprintf(debug_log, "DEBUG: Final text: '%s'\n", std::string(responseJson["text"]).c_str());
+                fflush(debug_log);
+            }
+            
             // Clean up
             whisper_free(ctx);
         } else {
             responseJson["error"] = "Unknown action: " + action;
         }
+        
+        if (debug_log) {
+            fclose(debug_log);
+        }
     } catch (const std::exception& e) {
+        FILE* debug_log = fopen("/tmp/whisper_debug.log", "a");
+        if (debug_log) {
+            fprintf(debug_log, "DEBUG: Exception caught: %s\n", e.what());
+            fflush(debug_log);
+            fclose(debug_log);
+        }
         responseJson["error"] = std::string("Exception: ") + e.what();
+    } catch (...) {
+        FILE* debug_log = fopen("/tmp/whisper_debug.log", "a");
+        if (debug_log) {
+            fprintf(debug_log, "DEBUG: Unknown exception caught\n");
+            fflush(debug_log);
+            fclose(debug_log);
+        }
+        responseJson["error"] = "Unknown exception occurred";
     }
 
+    FILE* debug_log = fopen("/tmp/whisper_debug.log", "a");
+    if (debug_log) {
+        fprintf(debug_log, "DEBUG: Returning response\n");
+        fflush(debug_log);
+        fclose(debug_log);
+    }
     return jsonToChar(responseJson);
 }

@@ -107,26 +107,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> initModel() async {
     try {
-      debugPrint('=== Initializing model ===');
       /// Try initializing the model from assets
       final bytesBase = await rootBundle.load('assets/ggml-${model.modelName}.bin');
       final modelPathBase = await whisperController.getPath(model);
-      debugPrint('Loading model from assets to: $modelPathBase');
       final fileBase = File(modelPathBase);
       await fileBase.writeAsBytes(bytesBase.buffer.asUint8List(bytesBase.offsetInBytes, bytesBase.lengthInBytes));
-      debugPrint('Model loaded from assets successfully');
     } catch (e) {
-      debugPrint('Assets loading failed: $e');
       /// On error try downloading the model
-      debugPrint('Attempting to download model...');
-      final downloadPath = await whisperController.downloadModel(model);
-      debugPrint('Model downloaded to: $downloadPath');
-      
-      // Verify the file exists
-      final modelPath = await whisperController.getPath(model);
-      final exists = File(modelPath).existsSync();
-      final size = exists ? File(modelPath).lengthSync() : 0;
-      debugPrint('Model file exists: $exists, size: $size bytes');
+      await whisperController.downloadModel(model);
     }
   }
 
@@ -177,58 +165,30 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> transcribeJfk() async {
-    try {
-      debugPrint('=== Starting transcribeJfk ===');
-      
-      final Directory tempDir = await getTemporaryDirectory();
-      debugPrint('Temp dir: ${tempDir.path}');
-      
-      final asset = await rootBundle.load('assets/jfk.wav');
-      debugPrint('Loaded asset, size: ${asset.lengthInBytes} bytes');
-      
-      final String jfkPath = "${tempDir.path}/jfk.wav";
-      final File convertedFile = await File(jfkPath).writeAsBytes(
-        asset.buffer.asUint8List(),
-      );
-      debugPrint('Audio file saved to: $jfkPath');
+    final Directory tempDir = await getTemporaryDirectory();
+    final asset = await rootBundle.load('assets/jfk.wav');
+    final String jfkPath = "${tempDir.path}/jfk.wav";
+    final File convertedFile = await File(jfkPath).writeAsBytes(
+      asset.buffer.asUint8List(),
+    );
 
+    setState(() {
+      isProcessingFile = true;
+    });
+
+    final result = await whisperController.transcribe(
+      model: model,
+      audioPath: convertedFile.path,
+      lang: 'en',
+    );
+
+    setState(() {
+      isProcessingFile = false;
+    });
+
+    if (result?.transcription.text != null) {
       setState(() {
-        isProcessingFile = true;
-        transcribedText = 'Processing...';
-      });
-
-      debugPrint('Starting transcription...');
-      debugPrint('Model: $model');
-      debugPrint('Audio path: ${convertedFile.path}');
-      debugPrint('Audio file exists: ${convertedFile.existsSync()}');
-      debugPrint('Audio file size: ${convertedFile.lengthSync()} bytes');
-      
-      final result = await whisperController.transcribe(
-        model: model,
-        audioPath: convertedFile.path,
-        lang: 'en',
-      );
-      debugPrint('Transcription completed, result: $result');
-
-      setState(() {
-        isProcessingFile = false;
-      });
-
-      if (result?.transcription.text != null) {
-        setState(() {
-          transcribedText = result!.transcription.text;
-        });
-      } else {
-        setState(() {
-          transcribedText = 'Transcription failed - no result returned';
-        });
-      }
-    } catch (e, stackTrace) {
-      debugPrint('ERROR in transcribeJfk: $e');
-      debugPrint('Stack trace: $stackTrace');
-      setState(() {
-        isProcessingFile = false;
-        transcribedText = 'Error: $e';
+        transcribedText = result!.transcription.text;
       });
     }
   }

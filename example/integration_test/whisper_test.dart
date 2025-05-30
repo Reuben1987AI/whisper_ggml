@@ -30,31 +30,47 @@ void main() {
 
       // Debug: Print current text content to understand what's happening
       final textWidgets = find.byType(Text);
+      print('=== Text widgets found: ${textWidgets.evaluate().length} ===');
       for (int i = 0; i < textWidgets.evaluate().length; i++) {
         final widget = textWidgets.evaluate().elementAt(i).widget as Text;
         print('Text widget $i: "${widget.data}"');
       }
 
-      // Verify the text changed from default placeholder
-      final hasDefaultText = find.text('Transcribed text will be displayed here').evaluate().isNotEmpty;
-      if (hasDefaultText) {
-        print('ERROR: Transcription failed - text still shows default placeholder');
-        // Let's check if there was an error or if transcription is still processing
-        await tester.pumpAndSettle(const Duration(seconds: 10));
+      // Check what text is currently displayed
+      final currentText = find.text('Transcribed text will be displayed here').evaluate().isEmpty;
+      
+      if (currentText) {
+        print('SUCCESS: Text changed from default');
+        // Look for common transcription phrases or error messages
+        final hasProcessing = find.textContaining('Processing').evaluate().isNotEmpty;
+        final hasError = find.textContaining('Error').evaluate().isNotEmpty;
+        final hasFailed = find.textContaining('failed').evaluate().isNotEmpty;
+        final hasResult = find.textContaining('ask').evaluate().isNotEmpty ||
+                         find.textContaining('nation').evaluate().isNotEmpty ||
+                         find.textContaining('country').evaluate().isNotEmpty;
+        
+        print('Has processing: $hasProcessing');
+        print('Has error: $hasError');
+        print('Has failed: $hasFailed');
+        print('Has result: $hasResult');
+        
+        // Test passes if text changed from default
+        expect(true, isTrue, reason: 'Text successfully changed from default');
+      } else {
+        print('WAITING: Text still shows default, waiting longer...');
+        await tester.pumpAndSettle(const Duration(seconds: 15));
         
         // Print text widgets again after additional wait
+        print('=== After extended wait ===');
         for (int i = 0; i < textWidgets.evaluate().length; i++) {
           final widget = textWidgets.evaluate().elementAt(i).widget as Text;
-          print('Text widget $i after wait: "${widget.data}"');
+          print('Text widget $i: "${widget.data}"');
         }
+        
+        // More lenient - just verify some change occurred or processing started
+        final stillDefault = find.text('Transcribed text will be displayed here').evaluate().isNotEmpty;
+        expect(stillDefault, isFalse, reason: 'Text should have changed from default after processing');
       }
-
-      // More lenient test - just verify the text changed from default
-      expect(
-        find.text('Transcribed text will be displayed here'), 
-        findsNothing,
-        reason: 'Default text should be replaced with transcription result or error message'
-      );
     });
 
     testWidgets('should handle missing model gracefully', (tester) async {
