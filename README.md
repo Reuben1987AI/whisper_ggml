@@ -140,7 +140,9 @@ flutter test test/integration/whisper_audio_convert_integration_test.dart
 
 ### Linux Support
 - Audio conversion on Linux requires FFmpeg to be installed
-- Install with: `sudo apt-get install ffmpeg` (Debian/Ubuntu) or equivalent for your distribution
+- Install with: `sudo apt-get install ffmpeg` (Debian/Ubuntu) or `sudo dnf install ffmpeg` (Fedora)
+- Build dependencies: `cmake`, `libgtk-3-dev` (Debian/Ubuntu) or `gtk3-devel` (Fedora)
+- Native whisper.cpp compilation is now supported on Linux
 
 ### Performance
 - Transcription processing time is about `5x` times faster when running in release mode.

@@ -26,9 +26,9 @@
 #include <limits.h>
 #include <stdarg.h>
 
-//#ifdef GGML_USE_METAL
+#ifdef GGML_USE_METAL
 #include <unistd.h>
-//#endif
+#endif
 
 // if C99 - static_assert is noop
 // ref: https://stackoverflow.com/a/53923785/4039976
@@ -148,11 +148,11 @@ typedef void* thread_ret_t;
 
 #define GGML_PRINT(...) printf(__VA_ARGS__)
 
-//#ifdef GGML_USE_ACCELERATE
+#ifdef GGML_USE_ACCELERATE
 // uncomment to use vDSP for soft max computation
 // note: not sure if it is actually faster
 #define GGML_SOFT_MAX_ACCELERATE
-//#endif
+#endif
 
 #if UINTPTR_MAX == 0xFFFFFFFF
     #define GGML_MEM_ALIGN 4
@@ -194,11 +194,11 @@ typedef void* thread_ret_t;
 #else
 inline static void* ggml_aligned_malloc(size_t size) {
     void* aligned_memory = NULL;
-//#ifdef GGML_USE_METAL
+#ifdef GGML_USE_METAL
     int result = posix_memalign(&aligned_memory, getpagesize(), size);
-//#else
-//    int result = posix_memalign(&aligned_memory, GGML_MEM_ALIGN, size);
-//#endif
+#else
+    int result = posix_memalign(&aligned_memory, GGML_MEM_ALIGN, size);
+#endif
     if (result != 0) {
         // Handle allocation failure
         const char *error_desc = "unknown allocation error";
@@ -241,18 +241,18 @@ inline static void* ggml_aligned_malloc(size_t size) {
     GGML_TENSOR_LOCALS(int64_t, ne,  dst,  ne); \
     GGML_TENSOR_LOCALS(size_t,  nb,  dst,  nb);
 
-//#if defined(GGML_USE_ACCELERATE)
+#if defined(GGML_USE_ACCELERATE)
 #include <Accelerate/Accelerate.h>
-//#if defined(GGML_USE_CLBLAST) // allow usage of CLBlast alongside Accelerate functions
-//#include "ggml-opencl.h"
-//#endif
-//#elif defined(GGML_USE_OPENBLAS)
-//#include <cblas.h>
-//#elif defined(GGML_USE_CUBLAS)
-//#include "ggml-cuda.h"
-//#elif defined(GGML_USE_CLBLAST)
-//#include "ggml-opencl.h"
-//#endif
+#if defined(GGML_USE_CLBLAST) // allow usage of CLBlast alongside Accelerate functions
+#include "ggml-opencl.h"
+#endif
+#elif defined(GGML_USE_OPENBLAS)
+#include <cblas.h>
+#elif defined(GGML_USE_CUBLAS)
+#include "ggml-cuda.h"
+#elif defined(GGML_USE_CLBLAST)
+#include "ggml-opencl.h"
+#endif
 
 #undef MIN
 #undef MAX
@@ -3582,15 +3582,15 @@ inline static void ggml_vec_silu_backward_f32(const int n, float * dx, const flo
 #endif
 
 inline static void ggml_vec_sum_f32(const int n, float * s, const float * x) {
-//#ifndef GGML_USE_ACCELERATE
+#ifndef GGML_USE_ACCELERATE
     ggml_float sum = 0.0;
     for (int i = 0; i < n; ++i) {
         sum += (ggml_float)x[i];
     }
     *s = sum;
-//#else
+#else
 //    vDSP_sve(x, 1, s, n);
-//#endif
+#endif
 }
 
 inline static void ggml_vec_sum_ggf(const int n, ggml_float * s, const float * x) {
@@ -3602,15 +3602,15 @@ inline static void ggml_vec_sum_ggf(const int n, ggml_float * s, const float * x
 }
 
 inline static void ggml_vec_max_f32(const int n, float * s, const float * x) {
-//#ifndef GGML_USE_ACCELERATE
+#ifndef GGML_USE_ACCELERATE
     float max = -INFINITY;
     for (int i = 0; i < n; ++i) {
         max = MAX(max, x[i]);
     }
     *s = max;
-//#else
+#else
 //    vDSP_maxv(x, 1, s, n);
-//#endif
+#endif
 }
 
 inline static void ggml_vec_norm_inv_f32(const int n, float * s, const float * x) {
@@ -8342,18 +8342,18 @@ static void ggml_compute_forward_add_f32(
             const int i1 = (ir - i3*ne2*ne1 - i2*ne1);
 
 
-//#ifdef GGML_USE_ACCELERATE
+#ifdef GGML_USE_ACCELERATE
             vDSP_vadd(
                     (float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01), 1,
                     (float *) ((char *) src1->data + i3*nb13 + i2*nb12 + i1*nb11), 1,
                     (float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1 ), 1,
                     ne0);
-//#else
-//            ggml_vec_add_f32(ne0,
-//                    (float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1 ),
-//                    (float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01),
-//                    (float *) ((char *) src1->data + i3*nb13 + i2*nb12 + i1*nb11));
-//#endif
+#else
+ggml_vec_add_f32(ne0,
+(float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1 ),
+(float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01),
+(float *) ((char *) src1->data + i3*nb13 + i2*nb12 + i1*nb11));
+#endif
                 // }
             // }
         }
@@ -8637,7 +8637,7 @@ static void ggml_compute_forward_add1_f32(
         const int i2 = (ir - i3*ne2*ne1)/ne1;
         const int i1 = (ir - i3*ne2*ne1 - i2*ne1);
 
-//#ifdef GGML_USE_ACCELERATE
+#ifdef GGML_USE_ACCELERATE
         UNUSED(ggml_vec_add1_f32);
 
         vDSP_vadd(
@@ -8645,12 +8645,12 @@ static void ggml_compute_forward_add1_f32(
                 (float *) ((char *) src1->data), 0,
                 (float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1 ), 1,
                 ne0);
-//#else
-//        ggml_vec_add1_f32(ne0,
-//                (float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1 ),
-//                (float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01),
-//               *(float *) src1->data);
-//#endif
+#else
+ggml_vec_add1_f32(ne0,
+(float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1 ),
+(float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01),
+*(float *) src1->data);
+#endif
     }
 }
 
@@ -8936,17 +8936,17 @@ static void ggml_compute_forward_acc_f32(
         const int i2 = (ir - i3*ne12*ne11)/ne11;
         const int i1 = (ir - i3*ne12*ne11 - i2*ne11);
 
-//#ifdef GGML_USE_ACCELERATE
+#ifdef GGML_USE_ACCELERATE
         vDSP_vadd(
                 (float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01 + offset), 1,
                 (float *) ((char *) src1->data + i3*nb13 + i2*nb12 + i1*nb11), 1,
                 (float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1  + offset), 1, nc);
-//#else
-//        ggml_vec_add_f32(nc,
-//                (float *) ((char *)  dst->data + i3*nb3  + i2*nb2  + i1*nb1  + offset),
-//                (float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01 + offset),
-//                (float *) ((char *) src1->data + i3*nb13 + i2*nb12 + i1*nb11));
-//#endif
+#else
+ggml_vec_add_f32(nc,
+(float *) ((char *)  dst->data + i3*nb3  + i2*nb2  + i1*nb1  + offset),
+(float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01 + offset),
+(float *) ((char *) src1->data + i3*nb13 + i2*nb12 + i1*nb11));
+#endif
     }
 }
 
@@ -9010,18 +9010,18 @@ static void ggml_compute_forward_sub_f32(
             const int i1 = (ir - i3*ne2*ne1 - i2*ne1);
 
 
-//#ifdef GGML_USE_ACCELERATE
+#ifdef GGML_USE_ACCELERATE
             vDSP_vsub(
                     (float *) ((char *) src1->data + i3*nb13 + i2*nb12 + i1*nb11), 1,
                     (float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01), 1,
                     (float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1 ), 1,
                     ne0);
-//#else
-//            ggml_vec_sub_f32(ne0,
-//                    (float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1 ),
-//                    (float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01),
-//                    (float *) ((char *) src1->data + i3*nb13 + i2*nb12 + i1*nb11));
-//#endif
+#else
+ggml_vec_sub_f32(ne0,
+(float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1 ),
+(float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01),
+(float *) ((char *) src1->data + i3*nb13 + i2*nb12 + i1*nb11));
+#endif
                 // }
             // }
         }
@@ -9108,13 +9108,13 @@ static void ggml_compute_forward_mul_f32(
             float * src0_ptr = (float *) ((char *) src0->data + i03*nb03 + i02*nb02 + i01*nb01);
             float * src1_ptr = (float *) ((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11);
 
-//#ifdef GGML_USE_ACCELERATE
+#ifdef GGML_USE_ACCELERATE
             UNUSED(ggml_vec_mul_f32);
 
             vDSP_vmul( src0_ptr, 1, src1_ptr, 1, dst_ptr,  1, ne00);
-//#else
-//            ggml_vec_mul_f32(ne00, dst_ptr, src0_ptr, src1_ptr);
-//#endif
+#else
+ggml_vec_mul_f32(ne00, dst_ptr, src0_ptr, src1_ptr);
+#endif
                 // }
             // }
         }
@@ -9189,18 +9189,18 @@ static void ggml_compute_forward_div_f32(
             const int i1 = (ir - i3*ne2*ne1 - i2*ne1);
 
 
-//#ifdef GGML_USE_ACCELERATE
+#ifdef GGML_USE_ACCELERATE
             vDSP_vdiv(
                     (float *) ((char *) src1->data + i3*nb13 + i2*nb12 + i1*nb11), 1,
                     (float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01), 1,
                     (float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1 ), 1,
                     ne0);
-//#else
-//            ggml_vec_div_f32(ne0,
-//                    (float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1 ),
-//                    (float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01),
-//                    (float *) ((char *) src1->data + i3*nb13 + i2*nb12 + i1*nb11));
-//#endif
+#else
+ggml_vec_div_f32(ne0,
+(float *) ((char *) dst->data  + i3*nb3  + i2*nb2  + i1*nb1 ),
+(float *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01),
+(float *) ((char *) src1->data + i3*nb13 + i2*nb12 + i1*nb11));
+#endif
                 // }
             // }
         }
