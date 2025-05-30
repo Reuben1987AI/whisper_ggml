@@ -41,9 +41,10 @@
 ### 6. **PLATFORM-SPECIFIC LOGIC**
 **Understand platform differences deeply**
 - Android: Manual .so loading required
-- Linux: FFI plugins use DynamicLibrary.process()
+- Linux: FFI plugins are BUNDLED but NOT LINKED - require explicit .so loading
 - macOS/iOS: Symbols statically linked
-- **Rule**: Research platform behavior before assuming
+- **CRITICAL**: Never assume DynamicLibrary.process() works for FFI plugins
+- **Rule**: Verify library loading behavior through actual testing
 
 ### 7. **ERROR CONTEXT PRESERVATION**
 **When fixing errors, understand root cause**
@@ -80,6 +81,13 @@
 - Use `flutter pub deps` to verify plugin detection
 - FFI plugins: set `${plugin_name}_bundled_libraries` with PARENT_SCOPE
 - Native plugins: implement proper registrar functions
+- **CRITICAL**: FFI plugins on Linux require explicit DynamicLibrary.open(), NOT process()
+
+### FFI Plugin Library Loading Rules
+- **Android**: `DynamicLibrary.open('libname.so')` 
+- **Linux**: `DynamicLibrary.open('libplugin_name_plugin.so')` 
+- **macOS/iOS**: `DynamicLibrary.process()`
+- **Rule**: Test library loading on each platform - assumptions kill
 
 ### CMake Best Practices
 - Use `find_package(PkgConfig REQUIRED)` for system dependencies

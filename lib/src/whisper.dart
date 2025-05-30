@@ -37,18 +37,17 @@ class Whisper {
   /// override of model storage path
   final String? modelDir;
 
-  /// Library Loading Strategy
+  /// Library Loading Strategy - CORRECTED ARCHITECTURE
   /// 
-  /// Architecture Decision: Platform-specific loading approaches
+  /// Critical Learning: FFI plugins are BUNDLED but NOT LINKED into main process
   /// 
-  /// Android: Direct .so loading (whisper.cpp bundled as shared library)
+  /// Android: Direct .so loading 
   /// - Reason: Android NDK requires explicit library loading
-  /// - Trade-off: Manual management vs automatic discovery
   /// 
-  /// Linux: DynamicLibrary.process() for FFI plugins
-  /// - Reason: Flutter automatically loads FFI plugins into main process
-  /// - Justification: Leverages Flutter's plugin system instead of manual loading
-  /// - Benefit: Eliminates library path resolution issues
+  /// Linux: Direct .so loading for FFI plugins
+  /// - CORRECTION: FFI plugins exist as separate .so files, not in main process
+  /// - Flutter bundles but does NOT link FFI plugins into executable
+  /// - Must explicitly load: libwhisper_ggml_plugin.so
   /// 
   /// macOS/iOS: DynamicLibrary.process() 
   /// - Reason: Symbols are statically linked into main executable
@@ -56,9 +55,8 @@ class Whisper {
     if (Platform.isAndroid) {
       return DynamicLibrary.open('libwhisper.so');
     } else if (Platform.isLinux) {
-      // For Linux FFI plugins, Flutter loads the library automatically
-      // The symbols are available in the main process address space
-      return DynamicLibrary.process();
+      // Linux FFI plugins must be explicitly loaded as separate libraries
+      return DynamicLibrary.open('libwhisper_ggml_plugin.so');
     } else if (Platform.isMacOS || Platform.isIOS) {
       return DynamicLibrary.process();
     } else {
