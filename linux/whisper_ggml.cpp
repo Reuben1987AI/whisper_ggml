@@ -279,5 +279,3 @@ char* request(char* body)
 
     return jsonToChar(responseJson);
 }
-
-} // extern "C"
